@@ -214,6 +214,7 @@ Because Luxon was able to parse the string without difficulty, the output is a l
 | MMMM             | LLLL         | month as an unabbreviated localized string                        | `August`                    |
 | y                |              | year, 1-6 digits, very literally                                  | `2014`                      |
 | yy               |              | two-digit year, interpreted as > 1960 by default (also accepts 4) | `14`                        |
+| YY               |              | strictly two-digit year, interpreted as > 1960                 | `14`                        |
 | yyyy             |              | four-digit year                                                   | `2014`                      |
 | yyyyy            |              | four- to six-digit years                                          | `10340`                     |
 | yyyyyy           |              | six-digit years                                                   | `010340`                    |

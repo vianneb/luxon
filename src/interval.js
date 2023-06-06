@@ -4,25 +4,10 @@ import Settings from "./settings.js";
 import { InvalidArgumentError, InvalidIntervalError } from "./errors.js";
 import Invalid from "./impl/invalid.js";
 import Formatter from "./impl/formatter.js";
+import DateValidator from "./impl/dateValidator.js";
+import IntervalFormatter from './impl/intervalFormatter.js';
+import IntervalParser from './impl/intervalParser.js';
 import * as Formats from "./impl/formats.js";
-
-const INVALID = "Invalid Interval";
-
-// checks if the start is equal to or before the end
-function validateStartEnd(start, end) {
-  if (!start || !start.isValid) {
-    return Interval.invalid("missing or invalid start");
-  } else if (!end || !end.isValid) {
-    return Interval.invalid("missing or invalid end");
-  } else if (end < start) {
-    return Interval.invalid(
-      "end before start",
-      `The end of an interval must be after its start, but you had start=${start.toISO()} and end=${end.toISO()}`
-    );
-  } else {
-    return null;
-  }
-}
 
 /**
  * An Interval object represents a half-open interval of time, where each endpoint is a {@link DateTime}. Conceptually, it's a container for those two endpoints, accompanied by methods for creating, parsing, interrogating, comparing, transforming, and formatting them.
@@ -89,7 +74,7 @@ export default class Interval {
     const builtStart = friendlyDateTime(start),
       builtEnd = friendlyDateTime(end);
 
-    const validateError = validateStartEnd(builtStart, builtEnd);
+    const validateError = DateValidator.validateStartEnd(builtStart, builtEnd);
 
     if (validateError == null) {
       return new Interval({
@@ -134,41 +119,7 @@ export default class Interval {
    * @return {Interval}
    */
   static fromISO(text, opts) {
-    const [s, e] = (text || "").split("/", 2);
-    if (s && e) {
-      let start, startIsValid;
-      try {
-        start = DateTime.fromISO(s, opts);
-        startIsValid = start.isValid;
-      } catch (e) {
-        startIsValid = false;
-      }
-
-      let end, endIsValid;
-      try {
-        end = DateTime.fromISO(e, opts);
-        endIsValid = end.isValid;
-      } catch (e) {
-        endIsValid = false;
-      }
-
-      if (startIsValid && endIsValid) {
-        return Interval.fromDateTimes(start, end);
-      }
-
-      if (startIsValid) {
-        const dur = Duration.fromISO(e, opts);
-        if (dur.isValid) {
-          return Interval.after(start, dur);
-        }
-      } else if (endIsValid) {
-        const dur = Duration.fromISO(s, opts);
-        if (dur.isValid) {
-          return Interval.before(end, dur);
-        }
-      }
-    }
-    return Interval.invalid("unparsable", `the input "${text}" can't be parsed as ISO 8601`);
+    return IntervalParser.fromISO(text, opts);
   }
 
   /**
@@ -527,8 +478,7 @@ export default class Interval {
    * @return {string}
    */
   toString() {
-    if (!this.isValid) return INVALID;
-    return `[${this.s.toISO()} – ${this.e.toISO()})`;
+    return IntervalFormatter.formatToString(this);
   }
 
   /**
@@ -549,10 +499,8 @@ export default class Interval {
    * @example Interval.fromISO('2022-11-07T17:00Z/2022-11-07T19:00Z').toLocaleString({ weekday: 'short', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }); //=> Mon, Nov 07, 6:00 – 8:00 p
    * @return {string}
    */
-  toLocaleString(formatOpts = Formats.DATE_SHORT, opts = {}) {
-    return this.isValid
-      ? Formatter.create(this.s.loc.clone(opts), formatOpts).formatInterval(this)
-      : INVALID;
+  toLocaleString(formatOpts, opts) {
+    return IntervalFormatter.formatLocaleString(this, formatOpts, opts);
   }
 
   /**
@@ -562,8 +510,7 @@ export default class Interval {
    * @return {string}
    */
   toISO(opts) {
-    if (!this.isValid) return INVALID;
-    return `${this.s.toISO(opts)}/${this.e.toISO(opts)}`;
+    return IntervalFormatter.formatToISO(this, opts);
   }
 
   /**
@@ -573,8 +520,7 @@ export default class Interval {
    * @return {string}
    */
   toISODate() {
-    if (!this.isValid) return INVALID;
-    return `${this.s.toISODate()}/${this.e.toISODate()}`;
+    return IntervalFormatter.formatToISODate(this);
   }
 
   /**
@@ -585,10 +531,8 @@ export default class Interval {
    * @return {string}
    */
   toISOTime(opts) {
-    if (!this.isValid) return INVALID;
-    return `${this.s.toISOTime(opts)}/${this.e.toISOTime(opts)}`;
+    return IntervalFormatter.formatToISOTime(this, opts);
   }
-
   /**
    * Returns a string representation of this Interval formatted according to the specified format
    * string. **You may not want this.** See {@link Interval#toLocaleString} for a more flexible
@@ -601,7 +545,7 @@ export default class Interval {
    * @return {string}
    */
   toFormat(dateFormat, { separator = " – " } = {}) {
-    if (!this.isValid) return INVALID;
+    if (!this.isValid) return "Invalid Interval";
     return `${this.s.toFormat(dateFormat)}${separator}${this.e.toFormat(dateFormat)}`;
   }
 
